@@ -1,6 +1,6 @@
 # ParaBank · QA Automation Framework
 
-[![QA Pipeline](https://github.com/OWNER/REPO/actions/workflows/qa.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/qa.yml)
+[![QA Pipeline](https://github.com/escano1/parabank-qa-automation/actions/workflows/qa.yml/badge.svg)](https://github.com/escano1/parabank-qa-automation/actions/workflows/qa.yml)
 ![Playwright](https://img.shields.io/badge/Playwright-1.64-2EAD33?logo=playwright&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
 ![k6](https://img.shields.io/badge/k6-performance-7D64FF?logo=k6&logoColor=white)
