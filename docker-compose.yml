@@ -1,8 +1,9 @@
 # Instancia local y aislada de ParaBank para CI, pruebas de performance y ejecución sin rate limiting.
 # Uso: docker compose up -d  ->  http://localhost:8080/parabank/
+# Si el 8080 está ocupado: PARABANK_PORT=8081 en el .env y BASE_URL=http://localhost:8081/parabank/
 services:
   parabank:
     image: parasoft/parabank:latest
     container_name: parabank
     ports:
-      - '8080:8080'
+      - '${PARABANK_PORT:-8080}:8080'
