@@ -1,0 +1,128 @@
+name: QA Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Regresión nocturna de lunes a viernes (06:00 hora Colombia/Perú).
+    - cron: '0 11 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      run_load_test:
+        description: 'Ejecutar además la prueba de carga K6 (load.js)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: qa-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE_URL: http://localhost:8080/parabank/
+  NODE_VERSION: 22
+
+jobs:
+  static-checks:
+    name: Lint y typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+
+  playwright:
+    name: Playwright · ${{ matrix.name }}
+    needs: static-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      # Un job (y un contenedor de ParaBank) por suite: paralelismo sin escrituras concurrentes sobre el mismo backend.
+      matrix:
+        include:
+          - name: api
+            projects: --project=api --project=concurrency
+            browser: ''
+          - name: e2e-chromium
+            projects: --project=e2e-chromium
+            browser: chromium
+          - name: mobile-android
+            projects: --project=mobile-android
+            browser: chromium
+          - name: mobile-ios
+            projects: --project=mobile-ios
+            browser: webkit
+    services:
+      parabank:
+        image: parasoft/parabank:latest
+        ports:
+          - 8080:8080
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Instalar navegador
+        if: matrix.browser != ''
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Esperar a que ParaBank esté disponible
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf "${BASE_URL}index.htm" > /dev/null && echo "ParaBank listo" && exit 0
+            sleep 3
+          done
+          echo "ParaBank no respondió a tiempo" && exit 1
+      - name: Ejecutar tests
+        run: npx playwright test ${{ matrix.projects }}
+      - name: Publicar reporte
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.name }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
+
+  performance:
+    name: K6 · performance
+    needs: static-checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      parabank:
+        image: parasoft/parabank:latest
+        ports:
+          - 8080:8080
+    steps:
+      - uses: actions/checkout@v7
+      - uses: grafana/setup-k6-action@v1
+      - name: Esperar a que ParaBank esté disponible
+        run: |
+          for i in $(seq 1 60); do
+            curl -sf "${BASE_URL}index.htm" > /dev/null && exit 0
+            sleep 3
+          done
+          exit 1
+      - name: Smoke de performance
+        run: k6 run performance/k6/smoke.js
+      - name: Prueba de carga
+        if: github.event_name == 'schedule' || inputs.run_load_test
+        run: mkdir -p performance/k6/results && k6 run performance/k6/load.js
+      - name: Publicar resumen
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: k6-results
+          path: performance/k6/results/
+          if-no-files-found: ignore

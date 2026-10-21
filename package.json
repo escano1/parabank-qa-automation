@@ -1,0 +1,35 @@
+{
+  "name": "parabank-qa-automation",
+  "version": "1.0.0",
+  "description": "Framework de automatización QA (Playwright + K6) sobre ParaBank: UI E2E, mobile web, API REST/SOAP y performance.",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:api": "playwright test --project=api",
+    "test:e2e": "playwright test --project=e2e-chromium",
+    "test:mobile": "playwright test --project=mobile-android --project=mobile-ios",
+    "test:smoke": "playwright test --grep @smoke",
+    "test:critical": "playwright test --grep @critical",
+    "test:ui": "playwright test --ui",
+    "report": "playwright show-report",
+    "perf:smoke": "k6 run performance/k6/smoke.js",
+    "perf:load": "k6 run performance/k6/load.js",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^10.6.0",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "ajv": "^8.20.0",
+    "dotenv": "^18.0.8",
+    "eslint": "^10.13.0",
+    "eslint-plugin-playwright": "^2.12.1",
+    "fast-xml-parser": "^5.11.2",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.0",
+    "typescript-eslint": "^8.72.0"
+  }
+}
