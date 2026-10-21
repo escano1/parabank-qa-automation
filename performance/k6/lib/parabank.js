@@ -21,6 +21,11 @@ export function setupCustomer() {
   const username = `k6${Date.now().toString(36)}`;
   const password = 'K6pass!2026';
 
+  // La imagen Docker arranca sin esquema de base de datos; initializeDB lo crea (nunca en el demo público).
+  if (!BASE_URL.includes('parabank.parasoft.com')) {
+    http.post(`${BANK}/initializeDB`);
+  }
+
   http.get(`${BASE_URL}register.htm`); // crea la sesión requerida por el formulario
   const registration = http.post(`${BASE_URL}register.htm`, {
     'customer.firstName': 'Perf',

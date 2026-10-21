@@ -1,6 +1,7 @@
 import { test as setup, expect } from '@playwright/test';
 import { buildCustomer, toRegistrationForm } from '../../src/data/customer-factory';
 import { withRateLimitRetry } from '../../src/api/rate-limit';
+import { initializeLocalDatabase } from '../../src/api/environment';
 import { saveCustomer, SESSION_FILE } from '../../src/data/test-customer';
 import { ParaBankRestClient } from '../../src/api/rest-client';
 import type { Account, Customer } from '../../src/api/types';
@@ -14,9 +15,11 @@ const INITIAL_FUNDS = 100_000;
  * Por qué uno solo: el ambiente público está detrás de Cloudflare con rate limiting (HTTP 429).
  * El aislamiento entre tests paralelos se logra creando cuentas propias por test (fixture `newAccount`).
  */
-setup('registrar y fondear el cliente de pruebas', async ({ request }) => {
+setup('registrar y fondear el cliente de pruebas', async ({ request, baseURL }) => {
   setup.setTimeout(5 * 60_000);
   const data = buildCustomer();
+
+  await initializeLocalDatabase(request, baseURL);
 
   // El registro sólo existe como formulario web; se hace por HTTP para no gastar tiempo de UI.
   // Requiere una sesión previa (JSESSIONID), por eso el GET inicial.
@@ -24,7 +27,7 @@ setup('registrar y fondear el cliente de pruebas', async ({ request }) => {
   const registration = await withRateLimitRetry(() => request.post('register.htm', { form: toRegistrationForm(data) }));
   const html = await registration.text();
   const formErrors = [...html.matchAll(/class="error">([^<]+)</g)].map((m) => m[1]);
-  expect(registration.status(), 'El registro del cliente de prueba falló').toBe(200);
+  expect(registration.status(), `El registro del cliente de prueba falló: ${formErrors.join(' | ')}`).toBe(200);
   expect(html, `Registro rechazado: ${formErrors.join(' | ') || 'sin mensaje'}`).toContain(`Welcome ${data.username}`);
 
   const rest = new ParaBankRestClient(request);
